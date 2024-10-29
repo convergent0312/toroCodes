@@ -160,6 +160,14 @@ C Compute velocity in Star Region
             REAL CUP,GEL,GER,PM,PMAX,PMIN,PPV,PQ
             REAL PTL,PTR,QMAX,QUSER,UM
 
+            COMMON /GAMMAS/ GAMMA,G1,G2,G3,G4,G5,G6,G7,G8
+            COMMON /STATES/ DL,UL,PL,CL,DR,UR,PR,CR
+
+            QUSER=2.0
+
+            CUP = 0.25*(DL+DR)*(CL+CR)
+            PPV = 0.25*
+
 
 
         END SUBROUTINE GUESSP
