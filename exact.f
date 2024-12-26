@@ -1,3 +1,8 @@
+*
+C       Purpose: to solve the Riemann problem exactly
+C                for the time dependent and 1D
+C                Euler equation for ideal gas
+*
         PROGRAM exact
 
             IMPLICIT NONE
@@ -93,16 +98,19 @@ C Exact solution profiles are written to exact.out
             CLOSE(2)
   20        FORMAT(5(F14.6,2X))
 
-
-
+        
         END PROGRAM exact
+
+*
+*----------------------------------------------------------------------*
+*
 
         SUBROUTINE STARPU(P,U,MPA)
 
             IMPLICIT NONE
 *
-C Purpose: to compute the solution of pressure and velocity
-C in the star region
+C           Purpose: to compute the solution of pressure and velocity
+C           in the star region
 *
             INTEGER I, NRITER
             REAL DL, UL, PL, CL, DR, UR, PR, CR
@@ -150,11 +158,18 @@ C Compute velocity in Star Region
             RETURN 
         END SUBROUTINE STARPU
 
-
+*
+*----------------------------------------------------------------------*
+*
 
         SUBROUTINE GUESSP(PM)
 
             IMPLICIT NONE
+*
+C           Purpose: provide guess pressure PM in the Star Region
+C                    Sec 9.5 chap 1
+*
+
             REAL DL,UL,PL,CL,DR,UR,PR,CR
             REAL GAMMA,G1,G2,G3,G4,G5,G6,G7,G8
             REAL CUP,GEL,GER,PM,PMAX,PMIN,PPV,PQ
@@ -166,11 +181,13 @@ C Compute velocity in Star Region
             QUSER=2.0
 
             CUP = 0.25*(DL+DR)*(CL+CR)
-            PPV = 0.25*
+            PPV = 0.5
 
 
 
         END SUBROUTINE GUESSP
+
+
 
 
 
