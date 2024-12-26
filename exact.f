@@ -180,8 +180,8 @@ C                    Sec 9.5 chap 1
 
             QUSER=2.0
 
-            CUP = 0.25*(DL+DR)*(CL+CR)
-            PPV = 0.5
+            CUP = 0.25*(DL + DR)*(CL + CR)
+            PPV = 0.5*(PL + PR) + 0.5*(UL - UR)*CUP
 
 
 
