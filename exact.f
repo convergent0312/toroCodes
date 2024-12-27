@@ -6,9 +6,10 @@ C                Euler equation for ideal gas
         PROGRAM exact
 
             IMPLICIT NONE
+*
+C           Declaration of variables
+*
             INTEGER I, CELLS
-
-
             REAL GAMMA, G1, G2, G3, G4, G5, G6, G7, G8
             REAL DL, UL, PL, CL, DR, UR, PR, CR 
             REAL DIAPH, DOMLEN, DS, DX, PM, MPA, PS, S
@@ -16,6 +17,8 @@ C                Euler equation for ideal gas
 
             COMMON /GAMMAS/ GAMMA,G1,G2,G3,G4,G5,G6,G7,G8
             COMMON /STATES/ DL, UL, PL, CL, DR, UR, PR, CR
+
+            OPEN(UNIT=1,FILE='case4.ini',STATUS='unknown')
 
             READ(1,*) DOMLEN
             READ(1,*) DIAPH
@@ -77,7 +80,7 @@ C exact solution for pressure and velocity in star region is found
 * 
 C Complete solution at times TIMEOUT is found
 *
-            OPEN(UNIT=2,FILE='exact.out',STATUS='UNKNOWN')
+            OPEN(UNIT=2,FILE='case4.out',STATUS='UNKNOWN')
 
             DO 10 I = 1, CELLS
                 XPOS = (REAL(I) - 0.5)*DX
@@ -111,6 +114,10 @@ C Exact solution profiles are written to exact.out
 *
 C           Purpose: to compute the solution of pressure and velocity
 C           in the star region
+*
+
+*
+C           Declaration of variables
 *
             INTEGER I, NRITER
             REAL DL, UL, PL, CL, DR, UR, PR, CR
@@ -170,6 +177,10 @@ C           Purpose: provide guess pressure PM in the Star Region
 C                    Sec 9.5 chap 1
 *
 
+*
+C           Declaration of variables
+*
+
             REAL DL,UL,PL,CL,DR,UR,PR,CR
             REAL GAMMA,G1,G2,G3,G4,G5,G6,G7,G8
             REAL CUP,GEL,GER,PM,PMAX,PMIN,PPV,PQ
@@ -180,15 +191,238 @@ C                    Sec 9.5 chap 1
 
             QUSER=2.0
 
-            CUP = 0.25*(DL + DR)*(CL + CR)
-            PPV = 0.5*(PL + PR) + 0.5*(UL - UR)*CUP
+            CUP  = 0.25*(DL + DR)*(CL + CR)
+            PPV  = 0.5*(PL + PR) + 0.5*(UL - UR)*CUP
+            PPV  = AMAX1(0.0,PPV)
+            PMIN = AMIN1(PL, PR)
+            PMAX = AMAX1(PL, PR)
+            QMAX = PMAX/PMIN
 
+            IF(QMAX.LE.QUSER.AND.(PMIN.LE.PPV.AND.PPV.LE.PMAX))THEN
+*
+C               Select PVRS Riemann solver
+*
+                PM = PPV 
+            ELSE
+                IF(PPV.LT.PMIN)THEN
+*
+C                   Select Two-Rarefaction Riemann solver
+*
+                    PQ  = (PL/PR)**G1
+                    UM  = (PQ*UL/CL+UR/CR+G4*(PQ-1.0))/(PQ/CL+1.0/CR)
+                    PTL = 1.0+G7*(UL-UM)/CL
+                    PTR = 1.0+G7*(UM-UR)/CR
+                    PM  = 0.5*(PL*PTL**G3+PR*PTR**G3)
+                ELSE
+*
+C                   Select Two-Shock Riemann solver with
+C                   PVRS as estimate
+*
+                    GEL = SQRT((G5/DL)/(G6*PL+PPV))
+                    GER = SQRT((G5/DR)/(G6*PR+PPV))
+                    PM  = (GEL*PL+GER*PR-(UR-UL))/(GEL+GER)
+                ENDIF
+            ENDIF
 
-
+            RETURN 
         END SUBROUTINE GUESSP
 
+*
+*----------------------------------------------------------------------*
+*
+        SUBROUTINE PREFUN(F, FD, P, DK, PK, CK)
+*
+C       Purpose: evaluate pressure functions FL and FR 
+C                in exact Riemann solver
+*
+        IMPLICIT NONE
+*
+C       Declaration of variables
+*
 
+        REAL AK,BK,CK,DK,F,FD,P,PK,PRAT,QRT
+        REAL GAMMA,G1,G2,G3,G4,G5,G6,G7,G8
 
+        COMMON /GAMMAS/ GAMMA,G1,G2,G3,G4,G5,G6,G7,G8 
+
+        IF(P.LE.PK) THEN
+*
+C           Rarefaction wave
+*
+            PRAT = P/PK
+            F    = G4*CK*(PRAT**G1 - 1.0)
+            FD   = (1.0/(DK*CK))*PRAT**(-G2)
+        
+        ELSE
+*
+C           Shock wave
+*
+            AK  = G5/DK
+            BK  = G6*PK
+            QRT = SQRT(AK/(BK+P))
+            F   = (P-PK)*QRT
+            FD  = (1.0-0.5*(P-PK)/(BK+P))*QRT
+
+        ENDIF
+
+        RETURN
+
+        END SUBROUTINE PREFUN
+*
+*----------------------------------------------------------------------*
+*
+        SUBROUTINE SAMPLE(PM,UM,S,D,U,P)
+*
+C       Purpose: sample the solution throughout the wave pattern. 
+C                Pressure PM and velocity UM in Star Region are known. 
+C                Sampling performed in terms of S = X/T
+C                Sampled values are D, U, P
+*
+
+        IMPLICIT NONE
+*
+C       Declaration of variables
+*
+        REAL    DL, UL, PL, CL, DR, UR, PR, CR
+        REAL    GAMMA,G1,G2,G3,G4,G5,G6,G7,G8
+        REAL    C,CML,CMR,D,P,PM,PML,PMR,S
+        REAL    SHL,SHR,SL,SR,STL,STR,U,UM
+     
+        COMMON /GAMMAS/ GAMMA,G1,G2,G3,G4,G5,G6,G7,G8
+        COMMON /STATES/ DL,UL,PL,CL,DR,UR,PR,CR
+
+        IF(S.LE.UM) THEN 
+*
+C           Sampling points lie to the left of the contact 
+*      
+            IF(PM.LE.PL) THEN
+*
+C               Left rarefaction
+*
+                SHL = UL - CL
+                
+                IF(S.LE.SHL) THEN
+*
+C                   Sample point is left of data state
+*
+                    D = DL
+                    U = UL
+                    P = PL 
+                ELSE
+                    CML = CL*(PM/PL)**G1
+                    STL = UM - CML 
+
+                    IF(S.GT.STL) THEN 
+*
+C                       Sampled point is Star Left state
+*
+                        D = DL*(PM/PL)**(1.0/GAMMA)
+                        U = UM
+                        P = PM 
+                    ELSE 
+*
+C                       Sampled point is inside left fan
+*   
+                        U = G5*(CL + G7*UL + S)
+                        C = G5*(CL + G7*(UL - S))
+                        D = DL*(C/CL)**G4
+                        P = PL*(C/CL)**G3
+                    ENDIF
+                ENDIF
+            ELSE
+*
+C               Left shock
+*
+                PM = PM/PL
+                SL = UL - CL*SQRT(G2*PML + G1) 
+
+                IF(S.LE.SL)THEN
+*
+C                   Sampled point is left data state
+*
+                    D = DL
+                    U = UL
+                    P = PL
+                ELSE
+*
+C                   Sampled point is Star Left state
+*
+                    D = DL*(PML + G6)/(PML*G6 + 1.0)
+                    U = UM
+                    P = PM
+                ENDIF
+            ENDIF
+        ELSE
+
+*
+C           Sampling point lies to the right of the contact
+C            discontinuity
+*
+            IF(PM.GT.PR)THEN
+*
+C               Right shock
+*
+                PMR = PM/PR
+                SR = UR + CR*SQRT(G2*PMR + G1)
+
+                IF(S.GE.SR)THEN
+*
+C                   Sampled point is right data state
+*
+                    D = DR
+                    U = UR
+                    P = PR
+                ELSE
+*
+C                   Sampled point is Star Right state
+*
+                    D = DR*(PMR + G6)/(PMR*G6 + 1.0)
+                    U = UM
+                    P = PM
+                ENDIF
+            ELSE
+
+*
+C               Right rarefaction
+*
+                SHR = UR + CR
+                IF(S.GE.SHR)THEN
+*
+C                   Sampled point is right data state
+*
+                    D = DR
+                    U = UR
+                    P = PR
+                ELSE
+                    CMR = CR*(PM/PR)**G1
+                    STR = UM + CMR
+
+                    IF(S.LE.STR)THEN
+*
+C                       Sampled point is Star Right state
+*
+                        D = DR*(PM/PR)**(1.0/GAMMA)
+                        U = UM
+                        P = PM
+                    ELSE
+
+*
+C                       Sampled point is inside left fan
+*
+                        U = G5*(-CR + G7*UR + S)
+                        C = G5*(CR - G7*(UR - S))
+                        D = DR*(C/CR)**G4
+                        P = PR*(C/CR)**G3
+                    ENDIF
+                ENDIF
+            ENDIF
+
+        ENDIF
+        RETURN
+        END SUBROUTINE SAMPLE
+*
+*----------------------------------------------------------*
+*
 
 
 
