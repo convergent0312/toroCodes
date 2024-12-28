@@ -5,3 +5,4 @@ gfortran exact.f
 
 #run
 ./a.out 
+
