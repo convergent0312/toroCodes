@@ -14,6 +14,7 @@ C           Declaration of variables
             REAL DL, UL, PL, CL, DR, UR, PR, CR 
             REAL DIAPH, DOMLEN, DS, DX, PM, MPA, PS, S
             REAL TIMEOUT, UM, US, XPOS
+            REAL PTR_TOP, PTR_BOTTOM, PTR, EXP_TOP, EXP_BOTTOM
 
             COMMON /GAMMAS/ GAMMA,G1,G2,G3,G4,G5,G6,G7,G8
             COMMON /STATES/ DL, UL, PL, CL, DR, UR, PR, CR
@@ -55,6 +56,7 @@ C compute sound speeds
             CL = SQRT(GAMMA*PL/DL)
             CR = SQRT(GAMMA*PR/DR)
 
+
 * 
 C test the pressure positivity condition
 *
@@ -73,7 +75,20 @@ C program stopped
 * 
 C exact solution for pressure and velocity in star region is found
 *
+            PRINT *, "Calling STARPU"
             CALL STARPU(PM,UM,MPA)
+
+*
+C compute PTR 
+
+            EXP_TOP  = (2.0*GAMMA)/(GAMMA-1.0)
+            EXP_BOTTOM = (GAMMA-1.0)/(2.0*GAMMA)
+            PTR_TOP = CL+CR-0.5*(GAMMA-1)*(UR-UL)
+            PTR_BOTTOM = (CL/PL)**(EXP_BOTTOM)+(CR/PR)**(EXP_BOTTOM)
+            PTR = (PTR_TOP/PTR_BOTTOM)**(EXP_TOP)
+            PRINT*, "PTR = ", PTR
+
+
             DX = DOMLEN/REAL(CELLS)
 
 
@@ -147,7 +162,7 @@ C Guessed value PSTART is required
                 IF(P.LT.0.0) P = TOLPRE
                 POLD = P
  10         CONTINUE
-            WRITE(6,*)'Divergence in Newton-Raphon iteration'
+            WRITE(6,*)'Divergence in Newton-Raphson iteration'
  20         CONTINUE
 
 * 
